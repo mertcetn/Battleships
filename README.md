@@ -1,16 +1,79 @@
-> THIS REPO IS A WORK IN PROGRESS
-
 # Battleships
 
-A fully online classic battleships game made primarily with React and NestJS.
+A fully online multiplayer Battleships game built with a modern full-stack architecture featuring real-time WebSocket communication.
 
-# Check it out live at:
+> **Note:** The live demo is currently unavailable. Vercel deprecated Node.js 20 support, which broke the deployment. The project itself is fully functional locally.
 
-https://battleships-flax.vercel.app/
+---
 
-> Disclaimer: This is an early version for display only which is only barebones playable. Many features are yet to be implemented. Last updated: 06-24-26
-> Note: Since backend is hosted on render, it might take server around a minute to wake up.
+## Tech Stack
 
-![In battle image](./images/in_battle_2.png)
-![Main page image](./images/main_page.png)
-![Sign in image](./images/login_page.png)
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | React 19, Vite 8, TailwindCSS 4, React Router 7, Zustand |
+| **Backend** | NestJS 11, Prisma, PostgreSQL, Passport (JWT + Google OAuth) |
+| **Real-time** | Socket.IO (server + client) |
+| **Tooling** | PNPM Workspaces, TypeScript 5.9 |
+
+---
+
+## Features
+
+- Real-time multiplayer Battleships gameplay
+- Friends system
+- In-game chat
+- Authentication — local + Google OAuth
+- Password reset flow
+- Lobby & matchmaking queue
+- Player info & game state panels
+
+---
+
+## Screenshots
+
+| Login | Main Page | In Battle |
+|-------|-----------|-----------|
+| ![Login](./images/login_page.png) | ![Main](./images/main_page.png) | ![Battle](./images/in_battle_2.png) |
+
+---
+
+## Running Locally
+
+### Prerequisites
+- Node.js >= 22
+- PNPM
+- PostgreSQL instance
+
+### Setup
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start the backend
+cd server
+pnpm start:dev
+
+# Start the frontend (in a new terminal)
+cd client
+pnpm dev
+```
+
+Configure your `.env` files in both `client/` and `server/` before running.
+
+---
+
+## Project Structure
+
+```
+battleships/
+├── client/       # React + Vite frontend
+├── server/       # NestJS backend
+└── shared/       # Shared types/utilities
+```
+
+---
+
+## License
+
+Server: [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)

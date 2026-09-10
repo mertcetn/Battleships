@@ -3,6 +3,7 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -87,6 +88,8 @@ async function prismaCall<T>(prismaPromise: () => Promise<T>): Promise<T> {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   private hashPassword(password: string): Promise<string> {
@@ -113,7 +116,7 @@ export class UsersService {
       );
     } catch (err) {
       if (err instanceof HttpException) throw err;
-
+      this.logger.error(`Failed to create user (${createUserDto.email}):`, err);
       throw new InternalServerErrorException('Failed to create user');
     }
   }
@@ -139,6 +142,7 @@ export class UsersService {
       );
     } catch (err) {
       if (err instanceof HttpException) throw err;
+      this.logger.error(`Failed to find or create OAuth user (${email}):`, err);
       throw new InternalServerErrorException('Failed to create user');
     }
   }

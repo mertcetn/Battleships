@@ -11,6 +11,7 @@ import Shop from "./Pages/Shop/Shop.tsx";
 import Login from "./Pages/Login/Login.tsx";
 import Register from "./Pages/Register/Register.tsx";
 import ResetPassword from "./Pages/ResetPassword/ResetPassword.tsx";
+import Profile from "./Pages/Profile/Profile.tsx";
 import useSocket from "./hooks/useSocket.ts";
 import { lobbySocket } from "./lib/socket.ts";
 import { useUserStore } from "./stores/useUserStore.ts";
@@ -32,6 +33,14 @@ const router = createBrowserRouter([
             {
                 index: true,
                 element: <Main />,
+            },
+            {
+                path: "profile",
+                element: (
+                    <ProtectedRoute>
+                        <Profile />
+                    </ProtectedRoute>
+                ),
             },
             {
                 path: "leaderboard",

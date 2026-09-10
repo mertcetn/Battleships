@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -26,7 +27,9 @@ import { globalEventEmitter } from '../utils/eventEmitter';
 type PublicUser = Pick<
   User,
   'id' | 'nickname' | 'elo' | 'role' | 'email' | 'isProfileComplete'
->;
+> & {
+  tokenVersion?: number;
+};
 type InternalUser = Pick<
   User,
   | 'id'
@@ -36,6 +39,7 @@ type InternalUser = Pick<
   | 'role'
   | 'isProfileComplete'
   | 'elo'
+  | 'tokenVersion'
 >;
 
 const PUBLIC_USER_SELECT = {
@@ -45,6 +49,7 @@ const PUBLIC_USER_SELECT = {
   role: true,
   email: true,
   isProfileComplete: true,
+  tokenVersion: true,
 } as const;
 
 const FRIEND_SELECT = {
@@ -474,6 +479,7 @@ export class UsersService {
           role: true,
           isProfileComplete: true,
           elo: true,
+          tokenVersion: true,
         },
       }),
     );
@@ -559,6 +565,128 @@ export class UsersService {
     } catch (err) {
       if (err instanceof HttpException) throw err;
       throw new InternalServerErrorException('Failed to delete user');
+    }
+  }
+
+  async updateNickname(userId: string, nickname: string): Promise<PublicUser> {
+    try {
+      const user = await prismaCall(() =>
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { nickname },
+          select: PUBLIC_USER_SELECT,
+        }),
+      );
+      globalEventEmitter.emit('friend_activity', userId);
+      return user;
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      this.logger.error(`Failed to update nickname for user ${userId}:`, err);
+      throw new InternalServerErrorException('Failed to update nickname');
+    }
+  }
+
+  async updateEmail(
+    userId: string,
+    email: string,
+    passwordConfirm: string,
+  ): Promise<PublicUser> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const hashToCompare = user.password ?? DUMMY_HASH;
+    const isValid = await bcrypt.compare(passwordConfirm, hashToCompare);
+
+    if (!user.password || !isValid) {
+      throw new UnauthorizedException('Incorrect password');
+    }
+
+    try {
+      return await prismaCall(() =>
+        this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            email,
+            providerId: user.provider === 'local' ? email : user.providerId,
+          },
+          select: PUBLIC_USER_SELECT,
+        }),
+      );
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      this.logger.error(`Failed to update email for user ${userId}:`, err);
+      throw new InternalServerErrorException('Failed to update email');
+    }
+  }
+
+  async updatePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<PublicUser> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const hashToCompare = user.password ?? DUMMY_HASH;
+    const isValid = await bcrypt.compare(currentPassword, hashToCompare);
+
+    if (!user.password || !isValid) {
+      throw new UnauthorizedException('Incorrect current password');
+    }
+
+    const hashedPassword = await this.hashPassword(newPassword);
+
+    try {
+      return await prismaCall(() =>
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { password: hashedPassword },
+          select: PUBLIC_USER_SELECT,
+        }),
+      );
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      this.logger.error(`Failed to update password for user ${userId}:`, err);
+      throw new InternalServerErrorException('Failed to update password');
+    }
+  }
+
+  async incrementTokenVersion(userId: string): Promise<void> {
+    try {
+      await prismaCall(() =>
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { tokenVersion: { increment: 1 } },
+        }),
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to increment token version for user ${userId}:`,
+        err,
+      );
+    }
+  }
+
+  async getTokenVersion(userId: string): Promise<number | null> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { tokenVersion: true },
+      });
+      return user ? user.tokenVersion : null;
+    } catch (err) {
+      this.logger.error(`Failed to get token version for user ${userId}:`, err);
+      return null;
     }
   }
 }

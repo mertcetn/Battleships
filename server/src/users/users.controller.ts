@@ -8,9 +8,10 @@ import {
   Delete,
   Query,
   Req,
+  Res,
   ForbiddenException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -20,11 +21,20 @@ import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { SkipProfileCheck } from '../decorators/skip-profile-check.decorator';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 import { SkipAuth } from '../decorators/skip-auth.decorator';
+import { JwtService } from '@nestjs/jwt';
+import {
+  UpdateNicknameDto,
+  UpdateEmailDto,
+  UpdatePasswordDto,
+} from './dto/update-credentials.dto';
 
 @Roles(['admin', 'user']) // Default roles for all routes in this controller, can be overridden by specific routes
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   /** Creates a new user in the database. This endpoint is protected and can only be accessed by users with the 'admin' role.
   For sign-up, use the /auth/register endpoint instead, which is public and does not require authentication. */
@@ -138,13 +148,96 @@ export class UsersController {
 
   @SkipProfileCheck()
   @Patch('me/complete-profile')
-  completeProfile(@Req() { user }: Request, @Body() dto: CompleteProfileDto) {
-    return this.usersService.completeProfile(user!.sub!, dto.nickname);
+  async completeProfile(
+    @Req() { user }: Request,
+    @Body() dto: CompleteProfileDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const updatedUser = await this.usersService.completeProfile(
+      user!.sub!,
+      dto.nickname,
+    );
+    const token = this.generateToken(updatedUser);
+    this.setAuthCookie(res, token);
+    return updatedUser;
+  }
+
+  @Patch('me/nickname')
+  async updateNickname(
+    @Req() { user }: Request,
+    @Body() dto: UpdateNicknameDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const updatedUser = await this.usersService.updateNickname(
+      user!.sub!,
+      dto.nickname,
+    );
+    const token = this.generateToken(updatedUser);
+    this.setAuthCookie(res, token);
+    return { user: updatedUser };
+  }
+
+  @Patch('me/email')
+  async updateEmail(
+    @Req() { user }: Request,
+    @Body() dto: UpdateEmailDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const updatedUser = await this.usersService.updateEmail(
+      user!.sub!,
+      dto.email,
+      dto.password,
+    );
+    const token = this.generateToken(updatedUser);
+    this.setAuthCookie(res, token);
+    return { user: updatedUser };
+  }
+
+  @Patch('me/password')
+  async updatePassword(
+    @Req() { user }: Request,
+    @Body() dto: UpdatePasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const updatedUser = await this.usersService.updatePassword(
+      user!.sub!,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    const token = this.generateToken(updatedUser);
+    this.setAuthCookie(res, token);
+    return { success: true, message: 'Password updated successfully' };
   }
 
   @Roles(['admin'])
   @Delete(':identifier')
   remove(@Param('identifier') identifier: string) {
     return this.usersService.remove(identifier);
+  }
+
+  private setAuthCookie(res: Response, token: string) {
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.IS_CROSS_ORIGIN === 'true' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  private generateToken(user: {
+    id: string;
+    nickname: string;
+    role: string;
+    isProfileComplete: boolean;
+    tokenVersion?: number | null;
+  }) {
+    const payload = {
+      sub: user.id,
+      nickname: user.nickname,
+      role: user.role,
+      isProfileComplete: user.isProfileComplete,
+      tokenVersion: user.tokenVersion ?? 0,
+    };
+    return this.jwtService.sign(payload);
   }
 }

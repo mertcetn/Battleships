@@ -11,7 +11,7 @@ export default function Register() {
                 <RegisterContainer />
                 <div className="flex items-center justify-center gap-3 mt-6">
                     <MiscInfo
-                        text="XggXWolf"
+                        text="mertcetn"
                         svg={GithubIcon}
                         onClick={handleGithubClick}
                     />
@@ -22,5 +22,5 @@ export default function Register() {
 }
 
 function handleGithubClick() {
-    window.open("https://github.com/XggXWolf", "_blank");
+    window.open("https://github.com/mertcetn", "_blank");
 }

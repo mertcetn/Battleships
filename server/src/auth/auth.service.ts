@@ -39,12 +39,14 @@ export class AuthService {
     nickname: string;
     role: string;
     isProfileComplete: boolean;
+    tokenVersion?: number;
   }) {
     const payload = {
       sub: user.id,
       nickname: user.nickname,
       role: user.role,
       isProfileComplete: user.isProfileComplete,
+      tokenVersion: user.tokenVersion ?? 0,
     };
     return this.jwtService.sign(payload);
   }

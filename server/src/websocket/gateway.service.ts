@@ -34,6 +34,10 @@ export class GatewayService {
       const decoded = this.jwtService.verify(token);
 
       const user = await this.usersService.findMe(decoded.sub);
+      const tokenVersion = decoded.tokenVersion ?? 0;
+      if (user.tokenVersion !== undefined && user.tokenVersion > tokenVersion) {
+        throw new Error('Session has been revoked on all devices');
+      }
       const elo = user.elo;
 
       Object.assign(client.data, { elo, ...decoded });

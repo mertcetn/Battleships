@@ -4,9 +4,11 @@ import {
   InternalServerErrorException,
   NotFoundException,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import * as bcrypt from 'bcryptjs';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -378,6 +380,157 @@ describe('UsersService', () => {
       await expect(service.remove('user-1')).rejects.toThrow(
         InternalServerErrorException,
       );
+    });
+  });
+
+  // ── updateNickname ────────────────────────────────────────────────────────
+
+  describe('updateNickname', () => {
+    it('should update and return user', async () => {
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockPublicUser,
+        nickname: 'newnickname',
+      });
+
+      const result = await service.updateNickname('user-1', 'newnickname');
+      expect(result.nickname).toBe('newnickname');
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user-1' },
+          data: { nickname: 'newnickname' },
+        }),
+      );
+    });
+
+    it('should throw ConflictException if nickname is taken (P2002)', async () => {
+      mockPrisma.user.update.mockRejectedValue(makePrismaError('P2002'));
+      await expect(
+        service.updateNickname('user-1', 'takenname'),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ── updateEmail ───────────────────────────────────────────────────────────
+
+  describe('updateEmail', () => {
+    const hashedPass = bcrypt.hashSync('correctPassword', 4);
+
+    it('should throw NotFoundException if user not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      await expect(
+        service.updateEmail('user-1', 'new@example.com', 'correctPassword'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw UnauthorizedException if password is incorrect', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...mockInternalUser,
+        password: hashedPass,
+      });
+
+      await expect(
+        service.updateEmail('user-1', 'new@example.com', 'wrongPassword'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should update email and providerId when password is correct', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...mockInternalUser,
+        provider: 'local',
+        password: hashedPass,
+      });
+      mockPrisma.user.update.mockResolvedValue({
+        ...mockPublicUser,
+        email: 'new@example.com',
+      });
+
+      const result = await service.updateEmail(
+        'user-1',
+        'new@example.com',
+        'correctPassword',
+      );
+      expect(result.email).toBe('new@example.com');
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user-1' },
+          data: {
+            email: 'new@example.com',
+            providerId: 'new@example.com',
+          },
+        }),
+      );
+    });
+  });
+
+  // ── updatePassword ────────────────────────────────────────────────────────
+
+  describe('updatePassword', () => {
+    const hashedPass = bcrypt.hashSync('oldPassword123', 4);
+
+    it('should throw NotFoundException if user not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      await expect(
+        service.updatePassword('user-1', 'oldPassword123', 'newPass123'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw UnauthorizedException if current password is wrong', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...mockInternalUser,
+        password: hashedPass,
+      });
+
+      await expect(
+        service.updatePassword('user-1', 'wrongPassword', 'newPass123'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should update password with hash when current password matches', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        ...mockInternalUser,
+        password: hashedPass,
+      });
+      mockPrisma.user.update.mockResolvedValue(mockPublicUser);
+
+      const result = await service.updatePassword(
+        'user-1',
+        'oldPassword123',
+        'newPass123',
+      );
+      expect(result).toEqual(mockPublicUser);
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user-1' },
+          data: expect.objectContaining({
+            password: expect.any(String),
+          }),
+        }),
+      );
+    });
+  });
+
+  // ── incrementTokenVersion & getTokenVersion ───────────────────────────────
+
+  describe('tokenVersion methods', () => {
+    it('should increment tokenVersion', async () => {
+      mockPrisma.user.update.mockResolvedValue({ id: 'user-1', tokenVersion: 1 });
+      await service.incrementTokenVersion('user-1');
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { tokenVersion: { increment: 1 } },
+      });
+    });
+
+    it('should return tokenVersion if user exists', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ tokenVersion: 3 });
+      const version = await service.getTokenVersion('user-1');
+      expect(version).toBe(3);
+    });
+
+    it('should return null if user does not exist', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      const version = await service.getTokenVersion('user-1');
+      expect(version).toBeNull();
     });
   });
 });

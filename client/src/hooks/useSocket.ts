@@ -3,11 +3,19 @@ import type { Socket } from "socket.io-client";
 
 const socketRefs = new Map<Socket, number>();
 
-export default function useSocket(socket: Socket) {
+export default function useSocket(socket: Socket, enabled: boolean = true) {
     const [isConnected, setConnected] = useState(socket.connected);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!enabled) {
+            if (socket.connected) {
+                socket.disconnect();
+            }
+            setConnected(false);
+            return;
+        }
+
         const refs = socketRefs.get(socket) || 0;
         socketRefs.set(socket, refs + 1);
 
@@ -42,7 +50,7 @@ export default function useSocket(socket: Socket) {
             socket.off("disconnect", onDisconnect);
             socket.off("error", onError);
         };
-    }, [socket]);
+    }, [socket, enabled]);
 
     return { isConnected, error };
 }

@@ -109,7 +109,9 @@ const router = createBrowserRouter([
 ]);
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
-    useSocket(lobbySocket);
+    const user = useUserStore((state) => state.user);
+    const canConnect = user.id !== "-1" && user.isProfileComplete;
+    useSocket(lobbySocket, canConnect);
     return children;
 }
 

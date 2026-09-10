@@ -9,6 +9,7 @@ export default function LobbyPanel() {
     const user = useUserStore((state) => state.user);
 
     function handlePlayRanked(): void {
+        if (!user.isProfileComplete) return;
         setInQueue(true);
         joinQueue();
     }
@@ -17,6 +18,8 @@ export default function LobbyPanel() {
         setInQueue(false);
         leaveQueue();
     }
+
+    const isActionDisabled = !isSocketReady || user.id === "-1" || !user.isProfileComplete;
 
     return (
         <div id="lobby-panel" className="flex flex-col space-y-4 h-full">
@@ -28,23 +31,23 @@ export default function LobbyPanel() {
             </p>
             <button
                 id="play-ranked-btn"
-                className="w-full py-4 text-lg font-bold rounded-xl bg-green-600 hover:bg-green-700 transition shadow-xl transform hover:scale-[1.02]"
+                className="w-full py-4 text-lg font-bold rounded-xl bg-green-600 hover:bg-green-700 transition shadow-xl transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 onClick={inQueue ? handleCancelQueue : handlePlayRanked}
-                disabled={!isSocketReady || user.id === "-1"}
+                disabled={isActionDisabled}
             >
                 {inQueue
                     ? "⏳ Searching for Opponent..."
                     : "▶️ Play Ranked Match"}
             </button>
             <button
-                className="w-full py-4 text-lg font-bold rounded-xl bg-blue-600 hover:bg-blue-700 transition shadow-xl"
-                disabled={!isSocketReady || user.id === "-1"}
+                className="w-full py-4 text-lg font-bold rounded-xl bg-blue-600 hover:bg-blue-700 transition shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isActionDisabled}
             >
                 🤝 Invite Friend
             </button>
             <button
-                className="w-full py-4 text-lg font-bold rounded-xl bg-orange-600 hover:bg-orange-700 transition shadow-xl"
-                disabled={!isSocketReady || user.id === "-1"}
+                className="w-full py-4 text-lg font-bold rounded-xl bg-orange-600 hover:bg-orange-700 transition shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isActionDisabled}
             >
                 🤖 VS AI
             </button>

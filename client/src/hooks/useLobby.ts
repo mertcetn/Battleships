@@ -4,7 +4,11 @@ import { useGameStore } from "../stores/useGameStore";
 import { useUserStore } from "../stores/useUserStore";
 
 export default function useLobby(onMatchFound?: () => void) {
-    const joinQueue = () => lobbySocket.emit("join_queue");
+    const joinQueue = () => {
+        const user = useUserStore.getState().user;
+        if (!user.isProfileComplete) return;
+        lobbySocket.emit("join_queue");
+    };
     const leaveQueue = () => lobbySocket.emit("leave_queue");
 
     const {

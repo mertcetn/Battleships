@@ -19,8 +19,20 @@ const dummyUser: PlayerData = {
     elo: 0,
 };
 
+const getInitialUser = (): PlayerData => {
+    try {
+        const stored = localStorage.getItem("user");
+        if (stored) {
+            return JSON.parse(stored);
+        }
+    } catch {
+        // ignore
+    }
+    return dummyUser;
+};
+
 export const useUserStore = create<UserStore>((set) => ({
-    user: dummyUser,
+    user: getInitialUser(),
     isSocketReady: false,
     setUser: (data: PlayerData) => set({ user: data }),
     setIsSocketReady: (ready: boolean) => set({ isSocketReady: ready }),

@@ -14,9 +14,6 @@ export class ProfileCompleteGuard implements CanActivate {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    // Placeholder until we implement profile completion checks. For now, we will allow all requests to pass through.
-    return true;
-
     const skipAuth = this.reflector.getAllAndOverride<boolean>('skipAuth', [
       context.getHandler(),
       context.getClass(),

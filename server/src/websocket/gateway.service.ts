@@ -38,6 +38,12 @@ export class GatewayService {
       if (user.tokenVersion !== undefined && user.tokenVersion > tokenVersion) {
         throw new Error('Session has been revoked on all devices');
       }
+      if (!user.isProfileComplete) {
+        client.emit('error', {
+          message: 'Profile is not complete. Please choose a username.',
+        });
+        throw new Error('Profile is not complete. Please choose a username.');
+      }
       const elo = user.elo;
 
       Object.assign(client.data, { elo, ...decoded });

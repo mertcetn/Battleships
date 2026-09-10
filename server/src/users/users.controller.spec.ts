@@ -102,6 +102,48 @@ describe('UsersController', () => {
     });
   });
 
+  describe('completeProfile', () => {
+    it('should complete profile, re-issue cookie, and return updated user', async () => {
+      const updatedUser = {
+        ...mockPublicUser,
+        nickname: 'FleetCommander',
+        isProfileComplete: true,
+      };
+      (usersService.completeProfile as jest.Mock).mockResolvedValue(updatedUser);
+
+      const req: any = { user: { sub: 'user-1' } };
+      const res = createMockResponse();
+
+      const result = await controller.completeProfile(
+        req,
+        { nickname: 'FleetCommander' },
+        res,
+      );
+
+      expect(usersService.completeProfile).toHaveBeenCalledWith(
+        'user-1',
+        'FleetCommander',
+      );
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: 'user-1',
+          nickname: 'FleetCommander',
+          isProfileComplete: true,
+        }),
+      );
+      expect(res.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'mock-jwt-token',
+        expect.any(Object),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          user: updatedUser,
+        }),
+      );
+    });
+  });
+
   describe('updateEmail', () => {
     it('should update email with password confirmation, re-issue cookie, and return user', async () => {
       const updatedUser = { ...mockPublicUser, email: 'newfleet@sea.com' };

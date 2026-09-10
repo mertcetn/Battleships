@@ -55,6 +55,7 @@ export class UsersController {
     return { message: 'Server is alive' };
   }
 
+  @SkipProfileCheck()
   @Get('me')
   findMe(@Req() { user }: Request) {
     return this.usersService.findMe(user!.sub!);
@@ -159,7 +160,7 @@ export class UsersController {
     );
     const token = this.generateToken(updatedUser);
     this.setAuthCookie(res, token);
-    return updatedUser;
+    return { user: updatedUser, ...updatedUser };
   }
 
   @Patch('me/nickname')

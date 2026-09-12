@@ -2,7 +2,7 @@
 
 A fully online multiplayer Battleships game built with a modern full-stack architecture featuring real-time WebSocket communication.
 
-> **Note:** The live demo is currently unavailable. Vercel deprecated Node.js 20 support, which broke the deployment. The project itself is fully functional locally.
+> ~~**Note:** The live demo is currently unavailable. Vercel deprecated Node.js 20 support, which broke the deployment. The project itself is fully functional locally.~~ Live demo is up again at https://battleships-flax.vercel.app/
 
 ---
 
